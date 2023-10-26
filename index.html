@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description"
+        content="NFSD: Noise Free Score Distillation">
+  <meta name="keywords" content="generative, score distillation">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NFSD: Noise Free Score Distillation</title>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script>
+    window.dataLayer = window.dataLayer || [];
+
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-PYVRSFMDRL');
+  </script>
+  <!-- <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script> -->
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      "HTML-CSS": { linebreaks: { automatic: true } },
+      CommonHTML: { linebreaks: { automatic: true } },
+      SVG: { linebreaks: { automatic: true } },
+      TeX: {
+        Macros: {
+          ep: "\\varepsilon",
+          Loss: "\\mathcal{L}",
+          Rspace:"\\mathbb{R}",
+          dirn: "\\delta_\\text{N}",
+          dirr: "\\delta_\\text{D}",
+          dirc: "\\delta_\\text{C}",
+          dirneg: "\\delta_\\text{neg}",
+          pneg:"p_\\text{neg}",
+          z: "\\mathbf{z}",
+          x: "\\mathbf{x}",
+          unet: "\\epsilon_{\\phi}",
+          epred: "\\unet(\\z_t;y,t)",
+          epuncond: "\\unet(\\z_t;\\varnothing,t)",
+          xuncond: "\\x_{\\phi}(\z_t;\\varnothing,t)",
+          epneg: "\\unet(\\z_t;y=\\pneg,t)",
+          epredcfg: "\\unet^{s}(\\z_t;y,t)",
+          epredcfgx: "\\unet^{s}(\\z_t(\\x);y,t)",
+          grad: ["{ \\nabla_{\\negthinspace#1}}",1],
+        }
+      }
+    });
+    </script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS_HTML">
+  </script>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+        rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="icon" href="http://example.com/favicon.png">
+
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/bulma-carousel.min.js"></script>
+  <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="./static/js/index.js"></script>
+</head>
+<body>
+
+
+<section class="hero" style="padding-bottom:0.2em;">
+  <div class="hero-body" style="padding-bottom:0.2em;">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">NFSD: Noise Free Score Distillation</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://orenkatzir.github.io/">Oren Katzir</a><sup>*</sup><sup>1</sup>,</span>
+            <span class="author-block">
+              <a href="https://orpatashnik.github.io/">Or Patashnik</a><sup>*</sup><sup>1</sup>,</span>
+            <span class="author-block">
+              <a href="https://danielcohenor.com/">Daniel Cohen-Or</a><sup>1</sup>,
+            </span>
+            <span class="author-block">
+              <a href="https://www.cs.huji.ac.il/~danix/">Dani Lischinski</a><sup>2</sup>
+            </span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup>Tel-Aviv University,</span>
+            <span class="author-block"><sup>2</sup>The Hebrew University of Jerusalem</span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>*</sup>Denotes Equal Contribution</span>
+          </div>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <!-- PDF Link. -->
+              <span class="link-block">
+                <a href="https://arxiv.org/pdf/TBD"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-file-pdf"></i>
+                  </span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <!-- Code Link. -->
+              <span class="link-block">
+                <a href="https://github.com/orenkatzir/nfsd"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>Code</span>
+                  </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Teaser. -->
+<!-- 
+<section class="hero teaser">
+ <div class="is-centered is-full-width">
+   <div class="columns is-centered is-full-width">
+     <div class="is-4 has-text-centered" style="width:23.5%;float:left;">
+       <video poster="" id="a-hamburger" autoplay controls muted loop playsinline height="100%">
+         <source src="./static/videos/generated/a_peacock_with_wings_spread-rgb.mp4"
+                 type="video/mp4">
+       </video>
+     </div>
+     <div class="is-4 has-text-centered" style="width:11.75%;float:left;"> 
+       <div class="is-centered">
+         <div class="is-centered" style="float:left;">
+           <img src="./static/images/peacock_3d/0-rgb.jpg"
+               alt="peacock"/>  
+         </div>
+         <div class="is-centered" style="float:left;">
+           <img src="./static/images/peacock_3d/90-rgb.jpg"
+               alt="peacock"/>  
+         </div>
+       </div>
+     </div>
+     <div class="is-4 has-text-centered" style="width:23.5%;float:left;">
+       <video poster="" id="a-hamburger" autoplay controls muted loop playsinline height="100%">
+         <source src="./static/videos/generated/a_metal_lying_buddha-test-rgb.mp4"
+                 type="video/mp4">
+       </video>
+     </div>
+     <div class="is-4 has-text-centered" style="width:11.75%;float:left;"> 
+       <div class="is-centered">
+         <div class="is-centered" style="float:left;">
+           <img src="./static/images/buddha_3d/27-rgb.jpg"
+               alt="buddha"/>  
+         </div>
+         <div class="is-centered" style="float:left;">
+           <img src="./static/images/buddha_3d/76-rgb.jpg"
+               alt="buddha"/>  
+         </div>
+       </div>
+     </div>
+   </div>
+ </div>
+ 
+ <div class="is-centered is-full-width">
+   <div class="columns is-centered is-full-width">
+     <div class="is-4 has-text-centered" style="width:23.5%;float:left;">
+       <img src="./static/images/fairy_single.jpg"
+           alt="fairy_single"/>
+     </div>
+     <div class="is-4 has-text-centered" style="width:23.5%;float:left;">
+       <img src="./static/images/astro_2D.jpg"
+           alt="astronaut"/>
+     </div>
+     <div class="is-4 has-text-centered" style="width:11.75%;float:left;"> 
+       <div class="is-centered">
+         <div class="is-centered" style="float:left;">
+           <img src="./static/images/buddha_2D.jpg"
+               alt="buddha"/>  
+         </div>
+         <div class="is-centered" style="float:left;">
+           <img src="./static/images/phoenix_2D.jpg"
+               alt="phoenix"/>  
+         </div>
+       </div>
+     </div>
+     <div class="is-4 has-text-centered" style="width:11.75%;float:left;"> 
+       <div class="is-centered">
+         <div class="is-centered" style="float:left;">
+           <img src="./static/images/chinese_dragon_2.jpg"
+               alt="dragon"/>  
+         </div>
+         <div class="is-centered" style="float:left;">
+           <img src="./static/images/a_man_wolf_2D.jpg"
+               alt="wolf"/>  
+         </div>
+       </div>
+     </div>
+   </div>
+ </div>
+ </section>
+ -->
+
+ <section class="hero teaser">
+  <div class="container is-centered has-text-centered is-max-desktop">
+    <!-- Abstract. -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-full-width">
+        <div class="content has-text-justified">
+          <video poster="" id="a-hamburger" autoplay controls muted loop playsinline height=100%>
+            <source src="./static/videos/teaser.mov"
+                    type="video/mp4">
+          </video>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+ <!-- Abstract -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Abstract. -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            Score Distillation Sampling (SDS) has emerged as the de facto approach for text-to-content generation in non-image domains. 
+            In this paper, we reexamine the SDS process and introduce a straightforward interpretation that demystifies the necessity for 
+            large Classifier-Free Guidance (CFG) scales, rooted in the distillation of an undesired noise term. 
+            Building upon our interpretation, we propose a novel Noise-Free Score Distillation (NFSD) process, which requires minimal modifications to the original SDS framework. 
+            Through this streamlined design, we achieve more effective distillation of pre-trained text-to-image diffusion models while using a nominal CFG scale. 
+            This strategic choice allows us to prevent the over-smoothing of results, ensuring that the generated data is both realistic and complies with the desired prompt. 
+            To demonstrate the efficacy of NFSD, we provide qualitative examples that compare NFSD and SDS, as well as several other methods.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!--/ Abstract. -->
+  </div>
+</section>
+
+
+<section class="hero is-light is-small">
+  <div class="hero-body">
+    <div class="container">
+      <h2 class="title is-3">Some results obtained by NFSD</h2>
+      <div id="results-carousel" class="carousel results-carousel">
+        <div class="item item-coffee">
+          <video poster="" id="an_old_vintage_car-test-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/an_old_vintage_car-test-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="sitting_on_a_water_lily-test-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/sitting_on_a_water_lily-test-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="A_soldier_iron_decor_pen_holder-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/A_soldier_iron_decor_pen_holder-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="A_highly_detailed_statue_of_a_dinosaur_made_of_leaves-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/A_highly_detailed_statue_of_a_dinosaur_made_of_leaves-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="A_robotic_butterfly_on_a_metal_flower-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/A_robotic_butterfly_on_a_metal_flower-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="a_sculpture_of_cleopatra_with_ceremonial_decoration-test-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/a_sculpture_of_cleopatra_with_ceremonial_decoration-test-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="a_trunk_up_statue_of_an_Elephant_with_Thailand_Decoration,_side_view" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/a_trunk_up_statue_of_an_Elephant_with_Thailand_Decoration,_side_view.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="a_rat_driving_a_car-test-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/a_rat_driving_a_car-test-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+
+        <div class="item item-coffee">
+          <video poster="" id="A_brass_statue_of_a_dragonfly-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/A_brass_statue_of_a_dragonfly-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="A_photo_of_a_vase_with_sunflowers-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/A_photo_of_a_vase_with_sunflowers-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="a_two_headed_fire_dragon_with_small_wings-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/a_two_headed_fire_dragon_with_small_wings-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="A_3D_model_of_an_adorable_cottage_with_a_thatched_roof-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/A_3D_model_of_an_adorable_cottage_with_a_thatched_roof-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+
+        <div class="item item-coffee">
+          <video poster="" id="a_humanoid_robot_using_a_laptop@20230926-034451-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/a_humanoid_robot_using_a_laptop@20230926-034451-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="a_DSLR_photo_of_a_classic_Packard_car-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/a_DSLR_photo_of_a_classic_Packard_car-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+
+        <div class="item item-coffee">
+          <video poster="" id="a_Matte_painting_of_a_castle_made_of_cheesecake_surrounded_by_a_moat_made_of_ice_cream@20230926-034451-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/a_Matte_painting_of_a_castle_made_of_cheesecake_surrounded_by_a_moat_made_of_ice_cream@20230926-034451-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="a_ceramic_lion-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/a_ceramic_lion-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="a_small_saguaro_cactus_planted_in_a_clay_pot-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/a_small_saguaro_cactus_planted_in_a_clay_pot-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id="Railing_tangga_mewah-2-rgb" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/Railing_tangga_mewah-2-rgb.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-coffee">
+          <video poster="" id=" " autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/generated/a_hamburger.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Animation. -->
+    <h2 class="title has-text-centered">Our Approach</h2>
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        Given a set of parameters \(\theta\) of a differentiable parametric image generator \(g\), a condition \(y\) and a pretrained diffusion model \(\unet\),
+         we wish to optimize \(\theta\) by distillation from the CFG score:
+        $$
+          \epredcfg = \unet(\z_t ; y=\varnothing, t) + s \left(\epred - \unet(\z_t ; y=\varnothing, t) \right).
+        $$
+        To gain a better understanding of SDS, it is helpful to examine the decomposition of \(\epredcfg\) into several intuitively interpretable components.
+        <br>
+         <!--
+        <h3 class="title is-4">SDS</h3>
+        <p> 
+          Given a pretrained diffusion model \(\unet\), SDS optimizes a set of parameters \(\theta\) of a differentiable parametric image generator \(g\), using the gradient:
+          $$
+            \grad{\theta} \Loss_\text{SDS} = w(t) \left(\epredcfgx - \epsilon \right) \frac{\partial \x}{\partial \theta}
+            
+          $$
+          where \(\x = g(\theta)\) is an image rendered by \(\theta\), \(\z_t(\x)\) is obtained by adding a Gaussian noise \(\epsilon\) to \(\x\) corresponding to the \(t\)-th timestep of the diffusion process, \(y\) is a condition to the diffusion model, and
+          $$
+          \epredcfg = \unet(\z_t ; y=\varnothing, t) + s \left(\epred - \unet(\z_t ; y=\varnothing, t) \right), 
+          $$ 
+          is the extrapolation of the conditioned prediction from the unconditioned prediction (i.e. CFG) by a factor \(s\).
+        </p>
+        
+        --> 
+        <br>
+        <h3 class="title is-4" style="margin-bottom:0.2em;">Score Decomposition</h3>
+        <p>
+          <strong>condition direction.</strong> The difference \(\dirc = \epred - \epuncond\) may be thought of as the direction that steers the generated image towards alignment with the condition \(y\).
+          The condition direction \(\delta_c\) (demonstrated below) is empirically observed to be aligned with the condition and uncorrelated with the added noise \(\epsilon\).
+          <div class="columns is-centered">
+            <div class="column is-four-fifths has-text-centered">
+              <img src="./static/images/NFSD_p4.jpg"
+                  class="interpolation-image"
+                  alt="Interpolate start reference image."/>
+            </div>
+          </div>
+        </p>
+
+        <p>
+          <strong>noise and in-domain directions.</strong>
+          Rewriting the CFG score using the condition direction \(\dirc\) defined above, we obtain:
+          $$
+          \epredcfg = \epuncond + s(\epred - \epuncond) = \epuncond + s\dirc.
+          $$
+        </p>
+        <p>
+          The unconditional term \(\epuncond\) is expected to predict the noise \(\epsilon\) that was added to an image \(\x \sim p_{\text{data}}\) to produce \(\z_t\). 
+          However, in SDS, \(\z_t\) is obtained by adding noise to an out-of-distribution (OOD) rendered image \(\x = g(\theta)\), which is not sampled from \(p_{\text{data}}\).
+          Thus, we can think of \(\epuncond\) as a combination of two components, \(\epuncond = \dirr + \dirn\).
+        </p>
+        <p>
+          We attempt to visualize the two components by examining the difference between two unconditional predictions \(\epsilon_\phi(\z_{t}(\x_{\textrm{ID}}); \varnothing,t)\) and \(\epsilon_\phi(\z_{t}(\x_{\textrm{OOD}}); \varnothing,t)\), where \(\z_{t}(\x_{\textrm{ID}})\) and \(\z_{t}(\x_{\textrm{OOD}})\) are noised in-domain and out-of-domain images, respectively, that depict the same content and are added the same noise \(\epsilon\).
+          Intuitively, while \(\epsilon_\phi(\z_{t}(\x_{\textrm{OOD}}); \varnothing,t)\) both removes noise (\(\dirn\)) and steers the sample towards the model's domain (\(\dirr\)), the prediction \(\epsilon_\phi(\z_{t}(\x_{\textrm{ID}}))\) mostly just removes noise (\(\dirn\)), since the image is already in-domain.
+          Thus, the difference between these predictions enables the sepeartion of \(\dirn\) and \(\dirr\).
+        </p>
+        <div class="columns is-centered">
+          <div class="column is-four-fifths has-text-centered">
+            <img src="./static/images/NFSD_p5.jpg"
+                class="interpolation-image"
+                alt="Interpolate start reference image."/>
+          </div>
+        </div>
+        <p>
+          As can be seen, \(\dirn\) indeed appears to consist of noise uncorrelated with the image content, while \(\dirr\) is large in areas where the distortion is most pronounced and adding \(\dirr\) to \(\x_{\textrm{OOD}}\) effectively enhances the realism of the image (column (e)). 
+        </p>
+        <br>
+        <h3 class="title is-4" style="margin-bottom:0.2em;">Noise Free Score Distillation</h3>
+        <p>
+          As discussed above, ideally only the \(s\dirc\) and the \(\dirr\) terms should be used to guide the optimization of the parameters \(\theta\).
+        </p>
+        <p>
+          To extract \(\dirr\), we distinguish between different stages in the backward (denoising) diffusion process. 
+        </p>
+        <p>
+          For sufficiently small timestep values \(t < 200\), \(\dirn\) is rather small, and the score \(\epuncond = \dirn + \dirr\) is increasingly dominated by \(\dirr\).
+        </p>
+        <p>
+          As for the larger timestep values, \(t \geq 200\), we propose to approximate \(\dirr\) by the difference \(\epuncond - \epneg\), where \(\pneg =\) ``unrealistic, blurry, low quality, out of focus, ugly, low contrast, dull, dark, low-resolution, gloomy''. 
+          Here, we are making the assumption that \(\delta_{C=\pneg} \approx -\dirr\), and thus
+          $$
+          \epuncond - \epneg = \dirr + \dirn - (\dirr + \dirn + \delta_{C = \pneg}) \approx \dirr.
+          $$
+        </p>
+        <p>
+          To conclude, we approximate \(\dirr\) by
+          $$
+              \dirr = 
+              \begin{cases}
+                      \epuncond , & \text{if } t < 200 \\
+                      \epuncond - \unet(\z_t; y=\pneg,t), & \text{otherwise,}
+              \end{cases}
+          $$
+          and use the resulting \(\dirc\) and \(\dirr\) to define an alternative, \(\textit{noise-free score distillation}\) loss \(\Loss_\text{NFSD}\), whose gradients are used to optimize the parameters 
+          \(\theta\), instead of \(\grad{\theta}\Loss_\text{SDS}\):
+          $$
+            \grad{\theta} \Loss_\text{NFSD} = w(t) \left(\dirr + s\dirc \right) \frac{\partial \x}{\partial \theta}.
+          $$
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero is-light">
+  <div class="container is-max-desktop">
+    <h2 class="title has-text-centered">Score Decomposition with respect to previous works</h2>
+    Our score decomposition formulation can be used to explain both SDS and previous works that were proposed to improve the SDS loss, which demonstrates the wide scope and applicability of our formulation.
+    
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <br>
+        <p>
+          Revisiting <a href="https://dreamfusion3d.github.io/"><strong>SDS</strong></a> with our interpertaion,
+          $$
+            \grad{\theta} \Loss_\text{SDS} = w(t)(\epredcfg - \epsilon) \frac{\partial \x}{\partial \theta} = w(t)(\dirr + \dirn + s\dirc - \epsilon) \frac{\partial \x}{\partial \theta}.    
+          $$
+          Note that while both \(\dirr\) and \(\dirc\) are needed to steer the rendered image towards an in-domain image aligned with the condition \(y\), the residual \(\dirn - \epsilon\) is generally non-zero and noisy.
+          Importantly, our decomposition explains the need for using a large CFG coefficient in SDS (e.g., \(s=100\)), as this enables the image-correlated \(s\dirc\) term to dominate the loss, making the noisy residual \(\dirn - \epsilon\) relatively negligible. 
+      
+        </p>
+      </div> 
+    </div>
+    
+    </p>
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <p>
+          <a href="https://openaccess.thecvf.com/content/ICCV2023/papers/Hertz_Delta_Denoising_Score_ICCV_2023_paper.pdf"><strong>DDS</strong></a> propose an adaptation of the SDS loss for image editing task and is defined by
+          $$
+            \grad{\theta} \Loss_\text{DDS} = 
+            \grad{\theta} \Loss_\text{SDS}(\z_t(\x), y) - 
+            \grad{\theta} \Loss_\text{SDS}(\tilde{\z}_t(\tilde{\x}), \tilde{y}),
+          $$
+          where \(\tilde{\z}_t(\tilde{\x}), \tilde{y}\) denote the noisy original input image and its corresponding prompt, respectively. Here \(y\) denotes the prompt that describes the edit, and \(\x, \tilde{\x}\) are noised with the same noise \(\epsilon\).
+          Incorporating our score decomposition yields
+          $$
+            \grad{\theta} \Loss_\text{DDS} = 
+            w(t)(\dirr + \dirn + s\delta_{C_\text{edit}} - \epsilon) - w(t)(\dirr + \dirn + s\delta_{C_\text{orig}} - \epsilon) = w(t) s(\delta_{C_\text{edit}} - \delta_{C_\text{orig}}).
+          $$
+          Our formulation helps to understand the high-quality results achieved by DDS: the residual component which makes the results in SDS over-smoothed and over-saturated is cancelled out. 
+          Moreover, since the optimization is initialized with an in-domain image, the \(\dirr\) component is not effectively needed and cancelled out. The remaining direction is the one relevant to the difference between the original prompt and the new one.
+        </p>
+      </div> 
+    </div>
+
+    <div>
+      <p>
+        <a href="https://ml.cs.tsinghua.edu.cn/prolificdreamer"><strong>ProlificDreamer</strong></a> tackle the generation task, and propose the VSD loss, which successfully alleviates the over-smoothed and over-saturated results obtained by SDS. 
+        In VSD, alongside the pretrained diffusion model \(\unet\), another diffusion model \(\epsilon_\text{LoRA}\) is trained during the optimization process.  
+        The \(\epsilon_\text{LoRA}\) model is initialized with the weights of \(\unet\), and during the optimization process it is fine-tuned with rendered images \(\x = g(\theta)\).
+        Effectively, the rendered images during the optimization are out-of-domain for the original pretrained model distribution, but are in-domain for \(\epsilon_\text{LoRA}\).
+        Hence, the gradients of the VSD loss are defined as
+        $$
+          \grad{\theta} \Loss_\text{VSD} = w(t) \left(\epredcfgx - \epsilon_\text{LoRA}(\z_t(\x);y,t,c \right) \frac{\partial \x}{\partial \theta},
+        $$
+          where \(c\) is another condition that is added to \(\epsilon_\text{LoRA}\) and represents the camera viewpoint of the rendered image \(\x\).
+          Viewed in terms of our score decomposition, since \(\epsilon_\text{LoRA}\) is fine-tuned on \(\x\), both \(\dirc\) and \(\dirr\) are approximately \(0\), thus it simply predicts \(\dirn\).
+          Therefore, \(\grad{\theta} \Loss_\text{VSD}\) can be written as
+        $$
+          \grad{\theta} \Loss_\text{VSD} = 
+          w(t) (\dirr + \dirn + s\dirc - \dirn) \frac{\partial \x}{\partial \theta} = 
+          w(t) (\dirr + s\dirc) \frac{\partial \x}{\partial \theta},
+        $$
+        i.e., it approximates exactly the same terms as our NFSD. It should be noted that unlike our approach, VSD has a considerable computational overhead of fine-tuning the additional diffusion model during the optimization process.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Animation. -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title has-text-centered">Comparison</h2>
+
+        <h3 class="title is-4">2D image generation</h3>
+        <p>
+        NFSD optimization of the latent code of Stable Diffusion is able to produce more pleasing results in which the object is clear, the background is detailed, and the image looks more realistic, even when using a CFG value of 7.5.
+        SDS optimization with a nominal CFG scale (7.5) yields oversmoothed images (top row), while using a high CFG scale (100) generates the main object but lacks background details and occasionally introduces aritfacts (middle row). 
+      </p>
+        <div class="columns is-centered">
+          <div class="column is-four-fifths has-text-centered">
+            <img src="./static/images/NFSD_p8.jpg"
+                 class="interpolation-image"
+                 alt="Interpolate start reference image."/>
+          </div>
+        </div>
+
+        <h3 class="title is-4">Text-to-NeRF synthesis</h3>
+        For generation of 3D objects, NFSD allows better distillation and typically generates fewer fine details.
+        <div class="columns is-centered">
+          <div class="column is-four-fifths has-text-centered">
+            <img src="./static/images/NFSD_p9.jpg"
+                   class="interpolation-image"
+                   alt="Interpolate start reference image."/>
+          </div>
+        </div>
+
+        <h3 class="title is-4">Comparison with related methods</h3>
+        For each of the methods we compare to results that were reported by the authors. As can be seen, our method achieves comparable or better results, while being significantly simpler than most of these methods.
+        <div class="columns is-centered">
+          <div class="column is-four-fifths has-text-centered">
+            <img src="./static/images/comparison.jpg"
+                   class="interpolation-image"
+                   alt="Interpolate start reference image."/>
+          </div>
+        </div>
+      </div>
+    </div>
+</section>
+
+
+<!-- Bibtex
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code>@article{katzir2023nfsd,
+  author    = {Katzir, Oren and Patashnik, Or and Cohen-Or, Daniel and Lischinski, Dani},
+  title     = {NFSD: Noise Free Score Distillation},
+  journal   = {arXiv preprint arXiv},
+  year      = {2023},
+}</code></pre>
+  </div>
+</section>
+-->
+
+
+<footer class="footer">
+  <div class="container">
+    <div class="content has-text-centered">
+      <a class="icon-link"
+         href="TBD.pdf">
+        <i class="fas fa-file-pdf"></i>
+      </a>
+      <a class="icon-link" href="https://github.com/orenkatzir/nfsd" class="external-link" disabled>
+        <i class="fab fa-github"></i>
+      </a>
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <p>
+            This website is licensed under a <a rel="license"
+                                                href="http://creativecommons.org/licenses/by-sa/4.0/">Creative
+            Commons Attribution-ShareAlike 4.0 International License</a>.
+          </p>
+          <p>
+            Website source code based on the Nerfies project page. If you want to reuse their <a
+            href="https://github.com/nerfies/nerfies.github.io">source code</a>, please credit them appropriately.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+</body>
+
+
+</html>
